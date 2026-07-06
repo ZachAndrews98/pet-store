@@ -36,6 +36,7 @@ services:
       key_in_query: true
       key_in_body: false
       run_on_preflight: true
+      test: field
       realm: null
       identity_realms:
         - scope: cp
