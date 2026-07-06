@@ -37,8 +37,6 @@ jobs:
 
       - name: deck gateway validate
         if: env.KONNECT_SPAT != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           deck gateway validate deck/kong.yaml \
             --konnect-token "$KONNECT_SPAT" \
@@ -51,6 +49,12 @@ jobs:
             cat /tmp/deck-validate.txt
             echo '```'
           } > /tmp/deck-validate.md
+      
+      - name: deck gateway validate output
+        if: failure() && steps.apply.conclusion == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
           cat /tmp/deck-validate.md >> "$GITHUB_STEP_SUMMARY"
           gh pr comment "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
