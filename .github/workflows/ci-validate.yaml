@@ -35,8 +35,6 @@ jobs:
           deck-version: '1.64.0'
           wrapper: false
 
-      # continue-on-error lets the next step post the comment before failing
-      # the job. stderr is merged into stdout so the full error is captured.
       - name: deck gateway validate
         id: validate
         if: env.KONNECT_SPAT != ''
