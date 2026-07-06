@@ -25,3 +25,22 @@ services:
     response_buffering: true
     strip_path: true
   write_timeout: 60000
+  plugins:
+  - name: key-auth
+    config:
+      key_names:
+        - apikey
+      hide_credentials: false
+      anonymous: null
+      key_in_header: true
+      key_in_query: true
+      key_in_body: false
+      run_on_preflight: true
+      realm: null
+      identity_realms:
+        - scope: cp
+      principals:
+        enabled: false
+        directory: default
+        error_on_miss: true
+    enabled: true
