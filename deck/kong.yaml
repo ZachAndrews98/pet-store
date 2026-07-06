@@ -1,6 +1,4 @@
 _format_version: "3.0"
-_konnect:
-  control_plane_name: Aya
 services:
 - connect_timeout: 60000
   enabled: true
@@ -43,4 +41,26 @@ services:
         enabled: false
         directory: default
         error_on_miss: true
+    enabled: true
+  - name: cors
+    config:
+      origins:
+        - "*"
+      headers: null
+      exposed_headers: null
+      methods:
+        - GET
+        - HEAD
+        - PUT
+        - PATCH
+        - POST
+        - DELETE
+        - OPTIONS
+        - TRACE
+        - CONNECT
+      max_age: null
+      credentials: false
+      preflight_continue: false
+      private_network: false
+      allow_origin_absent: true
     enabled: true
