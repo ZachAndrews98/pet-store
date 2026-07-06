@@ -1,0 +1,91 @@
+# cd-deploy - merge-to-main pipeline: apply deck/kong.yaml to the configured
+# Konnect control plane.
+#
+# Deploy strategy:
+#   1. Dump the live control plane state as a backup artifact.
+#   2. Apply the new config with `deck gateway apply` (non-destructive:
+#      creates/updates only — never deletes entities absent from the file).
+#   3. On any failure, restore the exact pre-deploy state from the backup
+#      using `deck gateway sync` (which will delete any partially-created
+#      entities to return the control plane to the snapshot taken in step 1).
+#
+# The backup is uploaded as a workflow artifact for audit and manual recovery.
+#
+# GitHub environment setup (repo settings, one-time per environment):
+#   konnect - or rename to match your env (dev/staging/prod etc.)
+#     vars.KONNECT_SERVER_URL    - Konnect API address (e.g. https://us.api.konghq.com)
+#     vars.KONNECT_CONTROL_PLANE - target control plane name (e.g. petstore-dev)
+#     secrets.KONNECT_SPAT       - Konnect service account personal access token
+#
+# Add required reviewers to the GitHub environment to gate deploys on approval.
+# workflow_dispatch lets you re-sync on demand without a code change.
+name: cd-deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'deck/**'
+      - '.github/workflows/cd-deploy.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deck apply - ${{ vars.KONNECT_CONTROL_PLANE || 'konnect' }}
+    runs-on: ubuntu-latest
+    environment: konnect
+    env:
+      KONNECT_SPAT: ${{ secrets.KONNECT_SPAT }}
+      KONNECT_SERVER_URL: ${{ vars.KONNECT_SERVER_URL }}
+      KONNECT_CONTROL_PLANE: ${{ vars.KONNECT_CONTROL_PLANE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Kong/setup-deck@v1
+        with:
+          deck-version: '1.64.0'
+          wrapper: false
+
+      # Snapshot the live control plane state before any changes so we have
+      # a known-good baseline to roll back to if apply fails.
+      - name: Backup current control plane configuration
+        run: |
+          deck gateway dump \
+            --konnect-token "$KONNECT_SPAT" \
+            --konnect-addr "$KONNECT_SERVER_URL" \
+            --konnect-control-plane-name "$KONNECT_CONTROL_PLANE" \
+            -o /tmp/backup.yaml
+          echo "Backup: $(wc -l < /tmp/backup.yaml) lines dumped from ${KONNECT_CONTROL_PLANE}."
+
+      # Non-destructive apply: creates and updates entities declared in the
+      # file but never deletes entities that are absent from it.
+      - name: Apply deck configuration
+        id: apply
+        run: |
+          deck gateway apply deck/kong.yaml \
+            --konnect-token "$KONNECT_SPAT" \
+            --konnect-addr "$KONNECT_SERVER_URL" \
+            --konnect-control-plane-name "$KONNECT_CONTROL_PLANE"
+
+      # Rollback using `deck gateway sync` against the backup snapshot. sync
+      # is intentional here: it restores the exact pre-deploy state including
+      # removing any entities that were partially created by the failed apply.
+      - name: Rollback to backup on failure
+        if: failure() && steps.apply.conclusion == 'failure'
+        run: |
+          echo "Apply failed — restoring ${KONNECT_CONTROL_PLANE} from pre-deploy backup..." \
+            >> "$GITHUB_STEP_SUMMARY"
+          deck gateway sync /tmp/backup.yaml \
+            --konnect-token "$KONNECT_SPAT" \
+            --konnect-addr "$KONNECT_SERVER_URL" \
+            --konnect-control-plane-name "$KONNECT_CONTROL_PLANE"
+          echo "Rollback complete. Control plane restored to pre-deploy state." \
+            >> "$GITHUB_STEP_SUMMARY"

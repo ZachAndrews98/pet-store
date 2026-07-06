@@ -1,0 +1,65 @@
+# ci-validate - PR gate: validate the deck config and diff against the
+# configured Konnect control plane.
+#
+# Offline validation (deck file validate) always runs — no credentials needed.
+# The deck gateway diff stage gate posts a PR comment showing exactly what will
+# change in the control plane; it is skipped cleanly when KONNECT_SPAT is
+# absent (forks, first-time setup).
+#
+# GitHub secrets / variables required (repo-level or environment-level):
+#   KONNECT_SPAT         - Konnect service account personal access token
+#   KONNECT_SERVER_URL   - Konnect API address (e.g. https://us.api.konghq.com)
+#   KONNECT_CONTROL_PLANE - target control plane name (e.g. petstore-dev)
+name: ci-validate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deck:
+    name: decK validate / diff
+    runs-on: ubuntu-latest
+    env:
+      KONNECT_SPAT: ${{ secrets.KONNECT_SPAT }}
+      KONNECT_SERVER_URL: ${{ vars.KONNECT_SERVER_URL }}
+      KONNECT_CONTROL_PLANE: ${{ vars.KONNECT_CONTROL_PLANE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Kong/setup-deck@v1
+        with:
+          deck-version: '1.64.0'
+          wrapper: false
+
+      - name: deck file validate (offline)
+        run: deck file validate deck/kong.yaml
+
+      - name: Stage gate - deck gateway diff against control plane (PR comment)
+        if: env.KONNECT_SPAT != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          deck gateway diff deck/kong.yaml \
+            --konnect-token "$KONNECT_SPAT" \
+            --konnect-addr "$KONNECT_SERVER_URL" \
+            --konnect-control-plane-name "$KONNECT_CONTROL_PLANE" \
+            > /tmp/deck-diff.txt
+          {
+            echo '## deck gateway diff'
+            echo "Control plane: \`${KONNECT_CONTROL_PLANE}\` at \`${KONNECT_SERVER_URL}\`"
+            echo '```'
+            cat /tmp/deck-diff.txt
+            echo '```'
+          } > /tmp/deck-comment.md
+          cat /tmp/deck-comment.md >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body-file /tmp/deck-comment.md
+
+      - name: Stage gate skipped notice
+        if: env.KONNECT_SPAT == ''
+        run: echo 'KONNECT_SPAT not configured - deck gateway diff stage gate skipped.' >> "$GITHUB_STEP_SUMMARY"
