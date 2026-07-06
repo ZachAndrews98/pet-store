@@ -36,10 +36,33 @@ jobs:
           wrapper: false
 
       - name: deck gateway validate
+        id: validate
+        if: env.KONNECT_SPAT != ''
+        continue-on-error: true
         run: |
           deck gateway validate deck/kong.yaml \
             --konnect-token "$KONNECT_SPAT" \
-            --konnect-addr "$KONNECT_SERVER_URL"
+            --konnect-addr "$KONNECT_SERVER_URL" \
+            --konnect-control-plane-name "$KONNECT_CONTROL_PLANE" \
+            > /tmp/deck-validate.txt 2>&1
+
+      - name: Post validation failure as PR comment
+        if: steps.validate.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '## deck gateway validate failed'
+            echo "Control plane: \`${KONNECT_CONTROL_PLANE}\` at \`${KONNECT_SERVER_URL}\`"
+            echo '```'
+            cat /tmp/deck-validate.txt
+            echo '```'
+          } > /tmp/deck-validate.md
+          cat /tmp/deck-validate.md >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body-file /tmp/deck-validate.md
+          exit 1
 
       - name: Stage gate - deck gateway diff against control plane (PR comment)
         if: env.KONNECT_SPAT != ''
