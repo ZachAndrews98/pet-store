@@ -35,8 +35,11 @@ jobs:
           deck-version: '1.64.0'
           wrapper: false
 
-      - name: deck file validate (offline)
-        run: deck file validate deck/kong.yaml
+      - name: deck gateway validate
+        run: |
+          deck gateway validate deck/kong.yaml \
+            --konnect-token "$KONNECT_SPAT" \
+            --konnect-addr "$KONNECT_SERVER_URL"
 
       - name: Stage gate - deck gateway diff against control plane (PR comment)
         if: env.KONNECT_SPAT != ''
