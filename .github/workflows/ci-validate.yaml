@@ -36,10 +36,25 @@ jobs:
           wrapper: false
 
       - name: deck gateway validate
+        if: env.KONNECT_SPAT != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           deck gateway validate deck/kong.yaml \
             --konnect-token "$KONNECT_SPAT" \
-            --konnect-addr "$KONNECT_SERVER_URL"
+            --konnect-addr "$KONNECT_SERVER_URL" \
+            > /tmp/deck-validate.txt
+          {
+            echo '## deck gateway validate'
+            echo "Control plane: \`${KONNECT_CONTROL_PLANE}\` at \`${KONNECT_SERVER_URL}\`"
+            echo '```'
+            cat /tmp/deck-validate.txt
+            echo '```'
+          } > /tmp/deck-validate.md
+          cat /tmp/deck-validate.md >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body-file /tmp/deck-validate.md
 
       - name: Stage gate - deck gateway diff against control plane (PR comment)
         if: env.KONNECT_SPAT != ''
