@@ -1,5 +1,5 @@
-# cd-deploy - merge-to-main pipeline: apply deck/kong.yaml to the configured
-# Konnect control plane.
+# cd-deploy - merge-to-main pipeline: apply kong/kong.yaml to the configured
+# Konnect control plane, then publish the OAS spec to the API catalog.
 #
 # Deploy strategy:
 #   1. Dump the live control plane state as a backup artifact.
@@ -8,8 +8,12 @@
 #   3. On any failure, restore the exact pre-deploy state from the backup
 #      using `deck gateway sync` (which will delete any partially-created
 #      entities to return the control plane to the snapshot taken in step 1).
+#   4. After a successful gateway deploy, run `kongctl plan` then
+#      `kongctl apply` to publish the OAS spec to the Konnect API catalog.
 #
-# The backup is uploaded as a workflow artifact for audit and manual recovery.
+# Tool boundaries:
+#   deck   - gateway entities (services, routes, plugins) in kong/kong.yaml
+#   kongctl - Konnect API catalog (APIs, versions, OAS spec) in kong/konnect/
 #
 # GitHub environment setup (repo settings, one-time per environment):
 #   konnect - or rename to match your env (dev/staging/prod etc.)
@@ -26,7 +30,8 @@ on:
     branches:
       - main
     paths:
-      - 'deck/**'
+      - 'kong/**'
+      - 'oas.yaml'
       - '.github/workflows/cd-deploy.yaml'
   workflow_dispatch:
 
@@ -70,7 +75,7 @@ jobs:
       - name: Apply deck configuration
         id: apply
         run: |
-          deck gateway apply deck/kong.yaml \
+          deck gateway apply kong/kong.yaml \
             --konnect-token "$KONNECT_SPAT" \
             --konnect-addr "$KONNECT_SERVER_URL" \
             --konnect-control-plane-name "$KONNECT_CONTROL_PLANE"
@@ -89,3 +94,32 @@ jobs:
             --konnect-control-plane-name "$KONNECT_CONTROL_PLANE"
           echo "Rollback complete. Control plane restored to pre-deploy state." \
             >> "$GITHUB_STEP_SUMMARY"
+
+  catalog:
+    name: kongctl apply - API catalog
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: konnect
+    env:
+      KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_SPAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kongctl
+        run: |
+          curl -sSfL -o /tmp/kongctl.zip \
+            https://github.com/Kong/kongctl/releases/download/v1.4.0/kongctl_linux_amd64.zip
+          unzip -o /tmp/kongctl.zip -d /tmp/kongctl-dist kongctl
+          sudo install /tmp/kongctl-dist/kongctl /usr/local/bin/kongctl
+          kongctl version
+
+      # Generate a fresh plan at merge time, then apply that exact plan.
+      # apply (create/update only) rather than sync: deleting a published
+      # API must be a deliberate act, not a file-removal side effect.
+      # --base-dir . is required: kong/konnect/apis/petstore.yaml loads
+      # oas.yaml via !file ../../../oas.yaml, which escapes the default
+      # -f source-root boundary (kong/konnect/).
+      - name: Plan then apply (API catalog + OAS spec)
+        run: |
+          kongctl plan -f kong/konnect/ -R --base-dir . --output-file /tmp/kongctl-plan.json
+          kongctl apply --plan /tmp/kongctl-plan.json --auto-approve

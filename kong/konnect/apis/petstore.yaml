@@ -1,0 +1,24 @@
+# Petstore API - kongctl declarative config.
+#
+# Registers the Swagger Petstore in the Konnect API catalog and attaches
+# oas.yaml as the spec for version 1.0.27.
+#
+# oas.yaml is at the repo root (three levels above this file), so its !file
+# path escapes the default -f source-root boundary (kong/konnect/). Plan and
+# apply must pass --base-dir from the repo root:
+#   kongctl plan -f kong/konnect/ -R --base-dir .
+#   kongctl apply --plan /tmp/kongctl-plan.json --auto-approve
+apis:
+  - ref: petstore
+    name: petstore
+    version: v1
+    slug: petstore
+    description: >-
+      Swagger Petstore API demonstrating Kong Gateway with key-auth and CORS.
+    labels:
+      managed-by: kongctl
+    versions:
+      - ref: petstore-v1
+        version: "1.0.27"
+        spec:
+          content: !file ../../../oas.yaml
