@@ -95,31 +95,31 @@ jobs:
           echo "Rollback complete. Control plane restored to pre-deploy state." \
             >> "$GITHUB_STEP_SUMMARY"
 
-  catalog:
-    name: kongctl apply - API catalog
-    needs: deploy
-    runs-on: ubuntu-latest
-    environment: konnect
-    env:
-      KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_SPAT }}
-    steps:
-      - uses: actions/checkout@v4
+  # catalog:
+  #   name: kongctl apply - API catalog
+  #   needs: deploy
+  #   runs-on: ubuntu-latest
+  #   environment: konnect
+  #   env:
+  #     KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_SPAT }}
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Install kongctl
-        run: |
-          curl -sSfL -o /tmp/kongctl.zip \
-            https://github.com/Kong/kongctl/releases/download/v1.4.0/kongctl_linux_amd64.zip
-          unzip -o /tmp/kongctl.zip -d /tmp/kongctl-dist kongctl
-          sudo install /tmp/kongctl-dist/kongctl /usr/local/bin/kongctl
-          kongctl version
+  #     - name: Install kongctl
+  #       run: |
+  #         curl -sSfL -o /tmp/kongctl.zip \
+  #           https://github.com/Kong/kongctl/releases/download/v1.4.0/kongctl_linux_amd64.zip
+  #         unzip -o /tmp/kongctl.zip -d /tmp/kongctl-dist kongctl
+  #         sudo install /tmp/kongctl-dist/kongctl /usr/local/bin/kongctl
+  #         kongctl version
 
-      # Generate a fresh plan at merge time, then apply that exact plan.
-      # apply (create/update only) rather than sync: deleting a published
-      # API must be a deliberate act, not a file-removal side effect.
-      # --base-dir . is required: kong/konnect/apis/petstore.yaml loads
-      # oas.yaml via !file ../../../oas.yaml, which escapes the default
-      # -f source-root boundary (kong/konnect/).
-      - name: Plan then apply (API catalog + OAS spec)
-        run: |
-          kongctl plan -f kong/konnect/ -R --base-dir . --output-file /tmp/kongctl-plan.json
-          kongctl apply --plan /tmp/kongctl-plan.json --auto-approve
+  #     # Generate a fresh plan at merge time, then apply that exact plan.
+  #     # apply (create/update only) rather than sync: deleting a published
+  #     # API must be a deliberate act, not a file-removal side effect.
+  #     # --base-dir . is required: kong/konnect/apis/petstore.yaml loads
+  #     # oas.yaml via !file ../../../oas.yaml, which escapes the default
+  #     # -f source-root boundary (kong/konnect/).
+  #     - name: Plan then apply (API catalog + OAS spec)
+  #       run: |
+  #         kongctl plan -f kong/konnect/ -R --base-dir . --output-file /tmp/kongctl-plan.json
+  #         kongctl apply --plan /tmp/kongctl-plan.json --auto-approve
