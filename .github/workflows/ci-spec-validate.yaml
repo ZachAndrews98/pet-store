@@ -17,7 +17,7 @@ on:
   pull_request:
     paths:
     - 'oas.yaml'
-    - '/kong/konnect/apis/**'
+    - 'kong/konnect/apis/**'
   workflow_dispatch:
 
 permissions:
