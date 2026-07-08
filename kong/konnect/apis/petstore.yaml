@@ -12,7 +12,7 @@ apis:
   - ref: petstore
     name: !file ../../../oas.yaml#info.title
     version: v1
-    slug: petstore
+    slug: petstore-v1
     description: !file ../../../oas.yaml#info.description
     labels:
       managed-by: kongctl
