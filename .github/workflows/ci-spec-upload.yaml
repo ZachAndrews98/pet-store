@@ -1,9 +1,12 @@
 name: ci-spec-upload
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
     - 'oas.yaml'
+    - '/kong/konnect/apis/**'
   workflow_dispatch:
 
 permissions:
@@ -11,9 +14,10 @@ permissions:
   pull-requests: write
 
 jobs:
-  kongctl:
-    name: kongctl schema check / plan dry-run
+  upload:
+    name: kongctl sync - API catalog
     runs-on: ubuntu-latest
+    environment: konnect
     env:
       KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_SPAT }}
     steps:
@@ -27,43 +31,7 @@ jobs:
           sudo install /tmp/kongctl-dist/kongctl /usr/local/bin/kongctl
           kongctl version
 
-      # Schema check without credentials: a dummy PAT drives full
-      # parse/schema validation — YAML parse errors, unknown fields, and
-      # bad !file paths all fail BEFORE auth with distinct errors; a clean
-      # config fails only at the state fetch with a 401 body.
-      # Exit 0 or a 401 body = pass; anything else = real error.
-      - name: Schema check - kongctl plan with dummy PAT (401 expected)
-        env:
-          KONGCTL_DEFAULT_KONNECT_PAT: dummy-pat-schema-check
-        run: |
-          set +e
-          kongctl plan -f kong/konnect/ -R --base-dir . > /tmp/kongctl-schema-check.txt 2>&1
-          status=$?
-          cat /tmp/kongctl-schema-check.txt
-          if [ "$status" -eq 0 ] || grep -q '"status":401' /tmp/kongctl-schema-check.txt; then
-            echo 'Parse/schema validation passed (401 auth failure is the expected dummy-PAT outcome).'
-            exit 0
-          fi
-          exit "$status"
-
-      - name: Stage gate - kongctl plan dry-run (PR comment)
-        if: env.KONGCTL_DEFAULT_KONNECT_PAT != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Plan then sync (API catalog + OAS spec)
         run: |
           kongctl plan -f kong/konnect/ -R --base-dir . --output-file /tmp/kongctl-plan.json
-          kongctl diff -f kong/konnect/ -R --base-dir . --mode apply > /tmp/kongctl-diff.txt
-          {
-            echo '## kongctl diff --mode apply'
-            echo '```'
-            cat /tmp/kongctl-diff.txt
-            echo '```'
-          } > /tmp/kongctl-comment.md
-          cat /tmp/kongctl-comment.md >> "$GITHUB_STEP_SUMMARY"
-          gh pr comment "${{ github.event.pull_request.number }}" \
-            --repo "${{ github.repository }}" \
-            --body-file /tmp/kongctl-comment.md
-
-      - name: Stage gate skipped notice
-        if: env.KONGCTL_DEFAULT_KONNECT_PAT == ''
-        run: echo 'KONNECT_SPAT not configured - kongctl plan dry-run skipped.' >> "$GITHUB_STEP_SUMMARY"
+          kongctl sync --plan /tmp/kongctl-plan.json --auto-approve
