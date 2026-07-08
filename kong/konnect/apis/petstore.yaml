@@ -10,15 +10,13 @@
 #   kongctl apply --plan /tmp/kongctl-plan.json --auto-approve
 apis:
   - ref: petstore
-    name: petstore
+    name: !file ../../../oas.yaml#info.title
     version: v1
     slug: petstore
-    description: >-
-      Swagger Petstore API demonstrating Kong Gateway with key-auth and CORS.
+    description: !file ../../../oas.yaml#info.description
     labels:
       managed-by: kongctl
     versions:
-      - ref: petstore-v1
-        version: "1.0.27"
-        spec:
-          content: !file ../../../oas.yaml
+    - ref: petstore-v1
+      version: !file ../../../oas.yaml#info.version
+      spec: !file ../../../oas.yaml

@@ -1,0 +1,37 @@
+name: ci-spec-upload
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+    - 'oas.yaml'
+    - '/kong/konnect/apis/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  upload:
+    name: kongctl sync - API catalog
+    runs-on: ubuntu-latest
+    environment: konnect
+    env:
+      KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_SPAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kongctl
+        run: |
+          curl -sSfL -o /tmp/kongctl.zip \
+            https://github.com/Kong/kongctl/releases/download/v1.4.0/kongctl_linux_amd64.zip
+          unzip -o /tmp/kongctl.zip -d /tmp/kongctl-dist kongctl
+          sudo install /tmp/kongctl-dist/kongctl /usr/local/bin/kongctl
+          kongctl version
+
+      - name: Plan then sync (API catalog + OAS spec)
+        run: |
+          kongctl plan -f kong/konnect/ -R --base-dir . --output-file /tmp/kongctl-plan.json
+          kongctl sync --plan /tmp/kongctl-plan.json --auto-approve
