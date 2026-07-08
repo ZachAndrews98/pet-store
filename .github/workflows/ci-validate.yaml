@@ -16,7 +16,7 @@ name: ci-validate
 on:
   pull_request:
     paths:
-      - '/kong/kong.yaml'
+      - 'kong/kong.yaml'
 
 permissions:
   contents: read
