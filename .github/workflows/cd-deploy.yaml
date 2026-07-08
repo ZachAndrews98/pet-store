@@ -13,7 +13,7 @@
 #
 # Tool boundaries:
 #   deck   - gateway entities (services, routes, plugins) in kong/kong.yaml
-#   kongctl - Konnect API catalog (APIs, versions, OAS spec) in kong/konnect/
+#   kongctl - Konnect API catalog (APIs, versions, OAS spec) in kong/api.yaml
 #
 # GitHub environment setup (repo settings, one-time per environment):
 #   konnect - or rename to match your env (dev/staging/prod etc.)
@@ -30,7 +30,7 @@ on:
     branches:
       - main
     paths:
-      - 'kong/**'
+      - 'kong/kong.yaml'
       - '.github/workflows/cd-deploy.yaml'
   workflow_dispatch:
 

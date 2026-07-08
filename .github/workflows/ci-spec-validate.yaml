@@ -17,7 +17,7 @@ on:
   pull_request:
     paths:
     - 'oas.yaml'
-    - 'kong/konnect/apis/**'
+    - 'kong/api.yaml'
   workflow_dispatch:
 
 permissions:
@@ -51,7 +51,7 @@ jobs:
           KONGCTL_DEFAULT_KONNECT_PAT: dummy-pat-schema-check
         run: |
           set +e
-          kongctl plan -f kong/konnect/ -R --base-dir . > /tmp/kongctl-schema-check.txt 2>&1
+          kongctl plan -f kong/api.yaml --base-dir . > /tmp/kongctl-schema-check.txt 2>&1
           status=$?
           cat /tmp/kongctl-schema-check.txt
           if [ "$status" -eq 0 ] || grep -q '"status":401' /tmp/kongctl-schema-check.txt; then
@@ -65,8 +65,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          kongctl plan -f kong/konnect/ -R --base-dir . --output-file /tmp/kongctl-plan.json
-          kongctl diff -f kong/konnect/ -R --base-dir . --mode apply > /tmp/kongctl-diff.txt
+          kongctl plan -f kong/api.yaml --base-dir . --output-file /tmp/kongctl-plan.json
+          kongctl diff -f kong/api.yaml --base-dir . --mode apply > /tmp/kongctl-diff.txt
           {
             echo '## kongctl diff --mode apply'
             echo '```'
