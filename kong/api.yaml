@@ -10,13 +10,13 @@
 #   kongctl apply --plan /tmp/kongctl-plan.json --auto-approve
 apis:
   - ref: petstore
-    name: !file ../../../oas.yaml#info.title
+    name: !file ../oas.yaml#info.title
     version: v1
     slug: petstore-v1
-    description: !file ../../../oas.yaml#info.description
+    description: !file ../oas.yaml#info.description
     labels:
       managed-by: kongctl
     versions:
     - ref: petstore-v1
-      version: !file ../../../oas.yaml#info.version
-      spec: !file ../../../oas.yaml
+      version: !file ../oas.yaml#info.version
+      spec: !file ../oas.yaml

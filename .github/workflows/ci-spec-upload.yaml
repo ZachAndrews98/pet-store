@@ -6,7 +6,7 @@ on:
       - main
     paths:
     - 'oas.yaml'
-    - 'kong/konnect/apis/**'
+    - 'kong/api.yaml'
   workflow_dispatch:
 
 permissions:
@@ -33,5 +33,5 @@ jobs:
 
       - name: Plan then sync (API catalog + OAS spec)
         run: |
-          kongctl plan -f kong/konnect/ -R --base-dir . --output-file /tmp/kongctl-plan.json
+          kongctl plan -f kong/api.yaml --base-dir . --output-file /tmp/kongctl-plan.json
           kongctl sync --plan /tmp/kongctl-plan.json --auto-approve
