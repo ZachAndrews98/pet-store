@@ -17,6 +17,6 @@ apis:
     labels:
       managed-by: kongctl
     versions:
-    - ref: petstore-v1
+    - ref: petstore-v2
       version: !file ../oas.yaml#info.version
       spec: !file ../oas.yaml
