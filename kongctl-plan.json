@@ -1,0 +1,97 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "generated_at": "2026-07-10T19:55:20.500793537Z",
+    "generator": "kongctl/1.4.1",
+    "mode": "sync",
+    "sync_scope": {
+      "root_resource_types": [
+        "api"
+      ],
+      "child_resource_types": [
+        {
+          "parent_type": "api",
+          "parent_ref": "petstore",
+          "resource_type": "api_implementation"
+        },
+        {
+          "parent_type": "api",
+          "parent_ref": "petstore",
+          "resource_type": "api_version"
+        }
+      ]
+    }
+  },
+  "changes": [
+    {
+      "id": "1:u:api:petstore",
+      "resource_type": "api",
+      "resource_ref": "petstore",
+      "resource_id": "a344660b-e298-4743-94cd-c76036e82b9e",
+      "action": "UPDATE",
+      "fields": {
+        "slug": "petstore"
+      },
+      "changed_fields": {
+        "slug": {
+          "old": "petstore-v1",
+          "new": "petstore"
+        }
+      },
+      "namespace": "main"
+    },
+    {
+      "id": "2:c:api_implementation:gateway-svc",
+      "resource_type": "api_implementation",
+      "resource_ref": "gateway-svc",
+      "action": "CREATE",
+      "fields": {
+        "service": {
+          "control_plane_id": "963d701c-c4df-490b-ba2b-5921d22ffa61",
+          "id": "9452dace-35c4-4dc9-a469-b10ba7cd6980"
+        }
+      },
+      "references": {
+        "api_id": {
+          "ref": "petstore",
+          "id": "a344660b-e298-4743-94cd-c76036e82b9e",
+          "lookup_fields": {
+            "name": "Swagger Petstore - OpenAPI 3.0"
+          }
+        }
+      },
+      "parent": {
+        "ref": "petstore",
+        "id": "a344660b-e298-4743-94cd-c76036e82b9e"
+      },
+      "protecting_parent": {
+        "resource_type": "api",
+        "resource_ref": "petstore",
+        "resource_id": "a344660b-e298-4743-94cd-c76036e82b9e",
+        "resource_name": "Swagger Petstore - OpenAPI 3.0"
+      },
+      "namespace": "main"
+    }
+  ],
+  "execution_order": [
+    "1:u:api:petstore",
+    "2:c:api_implementation:gateway-svc"
+  ],
+  "execution_groups": [
+    [
+      "1:u:api:petstore",
+      "2:c:api_implementation:gateway-svc"
+    ]
+  ],
+  "summary": {
+    "total_changes": 2,
+    "by_action": {
+      "CREATE": 1,
+      "UPDATE": 1
+    },
+    "by_resource": {
+      "api": 1,
+      "api_implementation": 1
+    }
+  }
+}
