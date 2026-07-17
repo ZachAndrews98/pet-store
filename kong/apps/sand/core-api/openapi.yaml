@@ -1,0 +1,20 @@
+openapi: 3.0.3
+info:
+  title: core-api
+  version: v1
+servers:
+  - url: https://core-api.sand.ayasandbox.com
+paths:
+  /api/home/get:
+    get:
+      summary: Home
+      operationId: getHome
+      responses:
+        "200":
+          description: OK
+    head:
+      summary: Home (HEAD)
+      operationId: headHome
+      responses:
+        "200":
+          description: OK

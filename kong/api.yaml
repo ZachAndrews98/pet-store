@@ -8,6 +8,20 @@
 # apply must pass --base-dir from the repo root:
 #   kongctl plan -f kong/konnect/ -R --base-dir .
 #   kongctl apply --plan /tmp/kongctl-plan.json --auto-approve
+_defaults:
+  kongctl:
+    namespace: main
+
+# control_planes:
+#   - ref: Aya
+#     name: Aya
+#     gateway_services:
+#     - ref: mock_svc
+#       _external:
+#         selector:
+#           matchFields:
+#             name: mock_svc
+
 apis:
   - ref: petstore
     name: !file ../oas.yaml#info.title
@@ -20,3 +34,8 @@ apis:
     - ref: petstore-v2
       version: !file ../oas.yaml#info.version
       spec: !file ../oas.yaml
+    implementations:
+    - ref: gateway-svc
+      service:
+        id: 9452dace-35c4-4dc9-a469-b10ba7cd6980
+        control_plane_id: 963d701c-c4df-490b-ba2b-5921d22ffa61

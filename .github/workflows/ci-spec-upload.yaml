@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   upload:
-    name: kongctl apply - API catalog
+    name: kongctl sync - API catalog
     runs-on: ubuntu-latest
     environment: konnect
     env:
@@ -31,7 +31,7 @@ jobs:
           sudo install /tmp/kongctl-dist/kongctl /usr/local/bin/kongctl
           kongctl version
 
-      - name: Plan then apply (API catalog + OAS spec)
+      - name: Plan then sync (API catalog + OAS spec)
         run: |
           kongctl plan -f kong/api.yaml --base-dir . --output-file /tmp/kongctl-plan.json
-          kongctl apply --plan /tmp/kongctl-plan.json --auto-approve
+          kongctl sync --plan /tmp/kongctl-plan.json --auto-approve
