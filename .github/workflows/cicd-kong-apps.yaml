@@ -1,0 +1,121 @@
+name: Continuous Integration and Deployment of IaC (Kong Apps)
+
+# Full plan -> approval -> deploy pipeline, scoped to a single app under
+# kong/apps/sand/ (e.g. core-api, hello-api). See cicd-kong.yaml for the
+# plan-only pipeline covering the rest of the kong/ tree (control_planes,
+# control_plane_groups) — that one hasn't grown an apply job yet, this one
+# is app-only and does.
+
+on:
+  workflow_dispatch:
+    inputs: # checkov:skip=CKV_GHA_7:Manual workflow requires selection
+      app:
+        description: "App folder name under kong/apps/sand/ to deploy (e.g. core-api, hello-api)."
+        required: true
+        type: string
+
+env:
+  working_dir: kong/apps/sand/${{ github.event.inputs.app }}
+  # Azure Storage Account backend auth (root.hcl's remote_state, use_azuread_auth)
+  # via GitHub's OIDC federation — no client secret needed. Hardcoded for now
+  # (these three are identifiers, not secrets); ARM_USE_OIDC=true plus
+  # `permissions: id-token: write` below is all the azurerm backend needs to
+  # pick up GitHub's OIDC token automatically.
+  ARM_CLIENT_ID: f796b49b-c493-41e8-8947-b25b85853845
+  ARM_SUBSCRIPTION_ID: 552bdc54-0a39-4040-9d8f-4002e8f572aa
+  ARM_TENANT_ID: c32ce235-4d9a-4296-a647-a9edb2912ac9
+  ARM_USE_OIDC: "true"
+  # Konnect + Cloudflare provider auth — existing sand-environment secrets.
+  KONNECT_PAT: ${{ secrets.KONNECT_PAT }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  # Datadog HTTP log shipping secret (units/kong/gateway_config_store_secrets),
+  # same secret name already used by cicd-cloudflare.yaml / cicd-kong.yaml.
+  DD_API_KEY: ${{ secrets.DD_API_KEY }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  checks:
+    runs-on: Linux-Runner
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v5
+
+      - name: Verify app folder exists
+        run: |
+          if [ ! -d "${{ env.working_dir }}" ]; then
+            echo "Error: ${{ env.working_dir }} does not exist under kong/apps/sand/."
+            exit 1
+          fi
+
+  plan:
+    runs-on: Linux-Runner
+    environment: sand
+    needs: [checks]
+    steps:
+      - name: Generate GitHub App token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: "infrastructure-catalog" # Optional: limit token to specific repos
+
+      - name: "Checkout"
+        uses: actions/checkout@v5
+
+      - name: Configure Git auth for catalog repo
+        run: |
+          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "git@github.com:"
+          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --get-regexp '^url\..*insteadOf'
+
+      - name: Plan
+        uses: gruntwork-io/terragrunt-action@v3.1.0
+        env:
+          TG_PROVIDER_CACHE: 1
+        with:
+          tg_dir: ${{ env.working_dir }}
+          tg_command: "stack run plan"
+
+  approval:
+    runs-on: Linux-Runner
+    environment: approvals
+    needs: [plan]
+    steps:
+      - name: Waiting for approval
+        id: approval
+        run: |
+          echo "deployment of ${{ github.event.inputs.app }} to sand approved."
+
+  # deploy:
+  #   runs-on: Linux-Runner
+  #   environment: sand
+  #   needs: [plan, approval]
+  #   steps:
+  #     - name: Generate GitHub App token
+  #       id: generate_token
+  #       uses: actions/create-github-app-token@v1
+  #       with:
+  #         app-id: ${{ secrets.APP_ID }}
+  #         private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  #         repositories: "infrastructure-catalog"
+
+  #     - name: "Checkout"
+  #       uses: actions/checkout@v5
+
+  #     - name: Configure Git auth for catalog repo
+  #       run: |
+  #         git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "git@github.com:"
+  #         git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "ssh://git@github.com/"
+  #         git config --global --get-regexp '^url\..*insteadOf'
+
+  #     - name: Deploy
+  #       uses: gruntwork-io/terragrunt-action@v3.1.0
+  #       env:
+  #         TG_PROVIDER_CACHE: 1
+  #       with:
+  #         tg_dir: ${{ env.working_dir }}
+  #         tg_command: "stack run apply"
